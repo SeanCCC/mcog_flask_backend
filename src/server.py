@@ -8,4 +8,4 @@ def get_store():
     return jsonify({'message': 'store not found'})
 
 
-app.run(port=5000, debug=True)
+app.run(host='0.0.0.0' ,port=5000, debug=True)
