@@ -9,5 +9,5 @@ def get_store():
 
 
 app.run(host='0.0.0.0', port=443, debug=True, ssl_context=(
-        "/etc/letsencrypt/live/cmogflaskbackend.minuku.org/cert.pem",
+        "/etc/letsencrypt/live/cmogflaskbackend.minuku.org/fullchain.pem",
         "/etc/letsencrypt/live/cmogflaskbackend.minuku.org/privkey.pem"))
