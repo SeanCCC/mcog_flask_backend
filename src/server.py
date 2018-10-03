@@ -2,8 +2,9 @@ from flask import Flask, jsonify
 app = Flask(__name__)
 
 # use public url: cmogflaskbackend.minuku.org
-
 # Garmin Callbacks
+
+
 @app.route('/mcog/garmin_cb/dailies', methods=['POST'])
 def dailies_cb():
     return jsonify({'message': 'store not found'})
