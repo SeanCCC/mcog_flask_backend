@@ -5,5 +5,5 @@
 Follow instructions on [the official MongoDB site](https://docs.mongodb.com/manual/administration/install-community/)
 
 ### Install required python package
-``` pip install -e .
+``` pip install -e . ```
 
