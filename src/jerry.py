@@ -78,7 +78,11 @@ def servicerec():
     isfirstrec = mongo.db.servicecheck.find({"email":email})
     sreccount = isfirstrec.count()
 
-    servicedictout = {"deviceid":deviceidnum,"email":email,'userid':userid,'currentcheckin':nowtime,'firstcheckin':str(firsttsdt),'currentcheckinstr':str(nowtssdt),'daysinsurvey':numofdays,'midnightstart':startmidnight,'surveyrunninghours': hourssincesurveystart,'startmidnightstr':midnightstr,'numrecs':sreccount}
+    servicedictout = {
+        "deviceid":deviceidnum, "email":email, 'userid':userid, 'currentcheckin':nowtime,
+        'firstcheckin':str(firsttsdt), 'currentcheckinstr':str(nowtssdt), 'daysinsurvey':numofdays,'midnightstart':startmidnight, 'surveyrunninghours': hourssincesurveystart,
+        'startmidnightstr':midnightstr, 'numrecs':sreccount
+    }
 
     return json.dumps(servicedictout)
 
@@ -107,9 +111,25 @@ def servicecheck():
     
     # Get checkedinlist
     if dumpdata['deviceid']:
-        checkedinlist = servicecheck.aggregate( [ { '$match': {'$and': [{'userid':int(dumpdata['deviceid'])}, {'ts': {'$gte': hours1ts  }}]}},  {"$group": { "_id": '$deviceid', "email":{"$first": "$email"},'timestamps': { '$push':  '$ts'},'count': { "$sum": 1}}}])
+        checkedinlist = servicecheck.aggregate([ 
+            { '$match': {'$and': [{'userid':int(dumpdata['deviceid'])}, {'ts': {'$gte': hours1ts  }}]}},  
+            {"$group": { 
+                "_id": '$deviceid', 
+                "email":{"$first": "$email"},
+                'timestamps': { '$push':  '$ts'},
+                'count': { "$sum": 1}
+            }}
+        ])
     else: 
-        checkedinlist = servicecheck.aggregate( [ { '$match': {'ts': {'$gte': hours1ts  }}},  {"$group": { "_id": '$userid', 'deviceid': {"$first":"$deviceid"},'timestamps': { '$push':  '$ts'},'count': { "$sum": 1}}}])
+        checkedinlist = servicecheck.aggregate([ 
+            { '$match': {'ts': {'$gte': hours1ts  }}},  
+            {"$group": { 
+                "_id": '$userid', 
+                'deviceid': {"$first":"$deviceid"},
+                'timestamps': { '$push':  '$ts'},
+                'count': { "$sum": 1}
+            }}
+        ])
     for i in checkedinlist:
         i['datetimes'] = [ str(datetime.datetime.fromtimestamp(j)) for j in i['timestamps'] ]
     
