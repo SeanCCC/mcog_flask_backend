@@ -80,7 +80,8 @@ def servicerec():
 
     servicedictout = {
         "deviceid":deviceidnum, "email":email, 'userid':userid, 'currentcheckin':nowtime,
-        'firstcheckin':str(firsttsdt), 'currentcheckinstr':str(nowtssdt), 'daysinsurvey':numofdays,'midnightstart':startmidnight, 'surveyrunninghours': hourssincesurveystart,
+        'firstcheckin':str(firsttsdt), 'currentcheckinstr':str(nowtssdt), 'daysinsurvey':numofdays,
+        'midnightstart':startmidnight, 'surveyrunninghours': hourssincesurveystart,
         'startmidnightstr':midnightstr, 'numrecs':sreccount
     }
 
