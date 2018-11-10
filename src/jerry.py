@@ -20,7 +20,7 @@ def devicedump():
         mongo.db.devicedump.insert(dumpdata)
     except Exception as e:
         print ('/devicedump', e, dumpdata)
-    endtime = {'lastinsert':int(dumpdata['endtime'])}
+    endtime = { 'lastinsert': int(dumpdata['endtime']) if 'endtime' in dumpdata else int(time.time()) }
     return json.dumps(endtime)
 
 # APP dump new trip record
@@ -32,7 +32,7 @@ def tripdump():
         mongo.db.tripdump.insert(dumpdata)
     except Exception as e:
         print ('/tripdump', e, dumpdata)
-    endtime = {'lastinsert':int(dumpdata['endtime'])}
+    endtime = { 'lastinsert': int(dumpdata['endtime']) if 'endtime' in dumpdata else int(time.time()) }
     return json.dumps(endtime)
 
 # APP dump new survey status
@@ -44,7 +44,7 @@ def surveydump():
         mongo.db.surveydump.insert(dumpdata)
     except Exception as e:
         print ('/surveydump', e, dumpdata)
-    endtime = {'lastinsert':dumpdata['triggerTime']}
+    endtime = { 'lastinsert': dumpdata['triggerTime'] if 'endtime' in dumpdata else int(time.time()) }
     return json.dumps(endtime)
 
 # Get last service's information and total count for the requested "deviceid", "email", and "userid"
@@ -52,9 +52,9 @@ def surveydump():
 def servicerec():
     dumpdata = request.get_json(force=True, silent=True)
     try:
-        deviceidnum = int(dumpdata['deviceid']) if dumpdata['deviceid'] else 9999
-        email = dumpdata['email'] if dumpdata['email'] else "NO EMAIL PROVIDED"
-        userid = dumpdata['userid'] if dumpdata['userid'] else "NOT PROVIDED"
+        deviceidnum = int(dumpdata['deviceid']) if 'deviceid' in dumpdata else 9999
+        email = dumpdata['email'] if 'email' in dumpdata else "NO EMAIL PROVIDED"
+        userid = dumpdata['userid'] if 'userid' in dumpdata else "NOT PROVIDED"
     except Exception as e:
         print ('/servicerec', e, dumpdata)
     # Calculate midnight epoch time
@@ -94,9 +94,9 @@ def servicecheck():
     dumpdata = request.get_json(force=True, silent=True)
 
     try:
-        starttime = int(dumpdata['starttime'])*3600 if dumpdata['starttime'] else ts-86400
-        hours1 = 86400 if dumpdata['last'] else int(starttime)*3600
-        hours2 = 0 if dumpdata['last'] else int(dumpdata['endtime'])*3600
+        starttime = int(dumpdata['starttime'])*3600 if 'starttime' in dumpdata else ts-86400
+        hours1 = 86400 if 'last' in dumpdata else int(starttime)*3600
+        hours2 = 0 if 'last' in dumpdata else int(dumpdata['endtime'])*3600
     except Exception as e:
         print ('/servicecheck', e, dumpdata)
 
@@ -108,10 +108,10 @@ def servicecheck():
     templist = list()
     for i in set(hours1query) - set(hours2query):
         templist.append({'userid':i})	
-    notcheckedin = {'last_'+str(int(hours2/3600))+"_hours": templist if templist else "All Checked In"}
+    notcheckedin = { 'last_'+str(int(hours2/3600))+"_hours": templist if templist else "All Checked In" }
     
     # Get checkedinlist
-    if dumpdata['deviceid']:
+    if 'deviceid' in dumpdata:
         checkedinlist = servicecheck.aggregate([ 
             { '$match': {'$and': [{'userid':int(dumpdata['deviceid'])}, {'ts': {'$gte': hours1ts  }}]}},  
             {"$group": { 
@@ -140,7 +140,7 @@ def servicecheck():
 @app.route('/trip_device', methods=['POST'])
 def gettripdevice():
     dumpdata = request.get_json(force=True, silent=True)
-    if dumpdata['userid']: 
+    if 'userid' in dumpdata: 
         userid = dumpdata['userid']
         # tripdict
         tripdict = mongo.db.tripdump.find({"userid":userid},{'_id': False})
@@ -176,8 +176,11 @@ def lastinsert2():
 
     for i in devices:
         # Set ddcount and lastdevicestr
-        i['ddpercent'] = float("{:.2f}".format((i["ddcount"]/336))) if i['lastdevice'] and i['ddcount'] else "NA"
-        i['lastdevicestr'] = str(datetime.datetime.fromtimestamp(i['lastdevice'])) if i['ddpercent'] else None
+        if 'lastdevice' in i and 'ddcount' in i:
+            i['ddpercent'] = float("{:.2f}".format((i["ddcount"]/336)))
+            i['lastdevicestr'] = str(datetime.datetime.fromtimestamp(i['lastdevice']))
+        else:
+            i['ddpercent'] = "NA"
         i['ddhours'] = int((nowtime-i['lastdevice'])/3600)
         # Update with surveys
         for j in surveys:
@@ -212,7 +215,7 @@ def surveycompletion():
         { "$sort": {"_id":1} }
     ])
     for i in surveys:
-        i['completeper'] =  float("{:.2f}".format((i["clicked"]/i["ct"])*100)) if i["clicked"] and i["ct"] else "NA"
+        i['completeper'] =  float("{:.2f}".format((i['clicked']/i['ct'])*100)) if 'clicked' in i and 'ct' in i else "NA"
     return json.dumps(surveys)
 
 # Show all trips (?)
@@ -228,7 +231,7 @@ def tripcompletion():
         {"$sort": {"_id":1}}
     ])
     for i in trips:
-        i['completeper'] =  float("{:.2f}".format((i["clicked"]/i["ct"])*100)) if i["clicked"] and i["ct"] else "NA"
+        i['completeper'] =  float("{:.2f}".format((i['clicked']/i['ct'])*100)) if 'clicked' in i and 'ct' in i else "NA"
     return json.dumps(trips)
 
 # Show the last login "email" for the requested "userid"
