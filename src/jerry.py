@@ -48,16 +48,16 @@ def surveydump():
     return json.dumps(endtime)
 
 # Get last service's information and total count for the requested "deviceid", "email", and "userid"
-@app.route('/servicerec', methods=['POST'])
+@app.route('/servicerec', methods=['GET'])
 def servicerec():
     dumpdata = request.get_json(force=True, silent=True)
     servicedictout = dict()
     try:
-        servicedictout['deviceid'] = int(dumpdata['deviceid']) if 'deviceid' in dumpdata else 9999
-        servicedictout['email'] = dumpdata['email'] if 'email' in dumpdata else "NO EMAIL PROVIDED"
-        servicedictout['userid'] = dumpdata['userid'] if 'userid' in dumpdata else "NOT PROVIDED"
+        servicedictout['deviceid'] = request.args.get('deviceid') if 'deviceid' in request.args else 9999
+        servicedictout['email'] = request.args.get('email') if 'email' in request.args else "NO EMAIL PROVIDED"
+        servicedictout['userid'] = request.args.get('userid') if 'userid' in request.args else "NOT PROVIDED"
     except Exception as e:
-        print ('/servicerec', e, dumpdata)
+        print ('/servicerec', e, request.args)
     # Calculate midnight epoch time
     midnight = int(time.mktime(datetime.date.today().timetuple()))+86400
     servicedictout['startmidnightstr'] = str(datetime.datetime.fromtimestamp(midnight))
@@ -254,6 +254,25 @@ def useridcheck():
             email = services[0]['email']
             return json.dumps({'userid':userid, 'email':email})
     return json.dumps({'userid':'no userid provided','email':'NA'})
+
+@app.route('surveycheck', methods=['GET','POST'])
+def surveycheck():
+    if 'userid' in request.args:
+        userid = request.args.get('userid')
+        outlist = mongo.db.surveydump.find({"userid":userid},{"_id": False})
+    else:
+        outlist = mongo.db.surveydump.find({},{"_id": False})
+    return json.dumps(outlist)
+
+@app.route('tripcheck', methods=['GET','POST'])
+def tripcheck():
+    if 'userid' in request.args:
+        userid = request.args.get('userid')
+        outlist = mongo.db.tripdump.find({"userid":userid},{"_id": False})
+    else:
+        outlist = mongo.db.triopdump.find({},{"_id": False})
+    return json.dumps(outlist)
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080, debug=True)
