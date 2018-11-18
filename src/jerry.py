@@ -13,30 +13,34 @@ mongo = PyMongo(app)
 
 # APP dump new device information
 @app.route('/devicedump', methods=['POST'])
+@app.route('/devicedump/', methods=['POST'])
 def devicedump():
     dumpdata = request.get_json(force=True, silent=True)
     try:
         dumpdata['servertime'] = int(time.time())
         mongo.db.devicedump.insert(dumpdata)
     except Exception as e:
-        print ('/devicedump', e, dumpdata)
-    endtime = { 'lastinsert': int(dumpdata['endtime']) if 'endtime' in dumpdata else int(time.time()) }
+        print ('/devicedump', e)
+    endtime = { 'lastinsert': int(dumpdata['EndTime']) if 'EndTime' in dumpdata else int(time.time()) }
     return json.dumps(endtime)
 
 # APP dump new trip record
 @app.route('/tripdump', methods=['POST'])
+@app.route('/tripdump/', methods=['POST'])
 def tripdump():
     dumpdata = request.get_json(force=True, silent=True)
+    print('Access /tripdump:', dumpdata)
     try:
         dumpdata['servertime'] = int(time.time())
         mongo.db.tripdump.insert(dumpdata)
     except Exception as e:
         print ('/tripdump', e, dumpdata)
-    endtime = { 'lastinsert': int(dumpdata['endtime']) if 'endtime' in dumpdata else int(time.time()) }
+    endtime = { 'lastinsert': int(dumpdata['EndTime']) if 'EndTime' in dumpdata else int(time.time()) }
     return json.dumps(endtime)
 
 # APP dump new survey status
 @app.route('/surveydump', methods=['POST'])
+@app.route('/surveydump/', methods=['POST'])
 def surveydump():
     dumpdata = request.get_json(force=True, silent=True)
     try:
@@ -50,7 +54,6 @@ def surveydump():
 # Get last service's information and total count for the requested "deviceid", "email", and "userid"
 @app.route('/servicerec', methods=['GET'])
 def servicerec():
-    dumpdata = request.get_json(force=True, silent=True)
     servicedictout = dict()
     try:
         servicedictout['deviceid'] = request.args.get('deviceid') if 'deviceid' in request.args else 9999
@@ -61,7 +64,7 @@ def servicerec():
     # Calculate midnight epoch time
     midnight = int(time.mktime(datetime.date.today().timetuple()))+86400
     servicedictout['startmidnightstr'] = str(datetime.datetime.fromtimestamp(midnight))
-    
+    time.sleep(0.1) 
     # Check last service
     servicedictout['currentcheckin'] = int(time.time())
     idcheck = mongo.db.servicecheck.find({"userid": servicedictout['userid']}, {'_id': False}).sort("ts",1)
@@ -80,25 +83,23 @@ def servicerec():
         servicedictout['midnightstart'] = startmidnight
         servicedictout['surveyrunninghours'] = hourssincesurveystart
         servicedictout['startmidnightstr'] = idcheck[0]['startmidnightstr']
-    
+    time.sleep(0.1)
     # Check if they have recorded any checkins already
     isfirstrec = mongo.db.servicecheck.find({"email":servicedictout['email']})
     servicedictout['numrecs'] = isfirstrec.count()
-
+    time.sleep(0.1)
     return json.dumps(servicedictout)
 
 # Get "not_checked_in" and "checked_in" for the requested "userid".
-@app.route('/servicecheck', methods=['POST'])
+@app.route('/servicecheck', methods=['GET'])
 def servicecheck():
     ts = int(time.time())
-    dumpdata = request.get_json(force=True, silent=True)
-
     try:
-        starttime = int(dumpdata['starttime'])*3600 if 'starttime' in dumpdata else ts-86400
-        hours1 = 86400 if 'last' in dumpdata else int(starttime)*3600
-        hours2 = 0 if 'last' in dumpdata else int(dumpdata['endtime'])*3600 if 'endtime' in dumpdata else -1
+        starttime = int(request.args.get('starttime'))*3600 if 'starttime' in request.args else ts-86400
+        hours1 = 86400 if 'last' in request.args else int(starttime)*3600
+        hours2 = 0 if 'last' in request.args else int(request.args.get('endtime'))*3600 if 'endtime' in request.args else -1
     except Exception as e:
-        print ('/servicecheck', e, dumpdata)
+        print ('/servicecheck', e, request.args)
 
     # Get notcheckedin
     hours1ts = ts - hours1
@@ -106,14 +107,16 @@ def servicecheck():
     hours1query = mongo.db.servicecheck.find({"ts": {"$gte": hours1ts}}, {'_id': False})
     hours2query = mongo.db.servicecheck.find({"ts": {"$gte": hours2ts}}, {'_id': False})
     templist = list()
-    for i in set(hours1query) - set(hours2query):
-        templist.append({'userid':i})	
+    for i in hours1query:
+	if i not in hours2query:
+            templist.append({'userid':i})
+        time.sleep(0.1)
     notcheckedin = { 'last_'+str(int(hours2/3600))+"_hours": templist if templist else "All Checked In" }
     
     # Get checkedinlist
-    if 'deviceid' in dumpdata:
+    if 'deviceid' in request.args:
         checkedinlist = servicecheck.aggregate([ 
-            { '$match': {'$and': [{'userid':int(dumpdata['deviceid'])}, {'ts': {'$gte': hours1ts  }}]}},  
+            { '$match': {'$and': [{'userid':int(request.args.get('deviceid'))}, {'ts': {'$gte': hours1ts  }}]}},  
             {"$group": { 
                 "_id": '$deviceid', 
                 "email":{"$first": "$email"},
@@ -133,7 +136,7 @@ def servicecheck():
         ])
     for i in checkedinlist:
         i['datetimes'] = [ str(datetime.datetime.fromtimestamp(j)) for j in i['timestamps'] ]
-    
+        time.sleep(0.1)
     return json.dumps( {'not_checked_in': notcheckedin,'checked_in': checkedinlist} )
 
 # Get the last "trip" and "device" information for the requested "userid".
@@ -146,6 +149,7 @@ def gettripdevice():
         tripdict = mongo.db.tripdump.find({"userid":userid},{'_id': False})
         tdcount = tripdict.count()
         td = tripdict[tdcount-1] if tdcount > 0 else {"Warning":"NOTICE - no trips have been dumped by userid "+str(userid)}
+        time.sleep(0.1)
         # devicedict
         devicedict = mongo.db.devicedump.find({"userid":userid},{'_id': False})
         ddcount = devicedict.count() 
@@ -173,7 +177,7 @@ def lastinsert2():
         {"$group": { "_id": "$userid", "lasttrip": {"$last": "$EndTime"}}}
     ])
     nowtime = int(time.time())
-
+    time.sleep(0.1)
     for i in devices:
         # Set ddcount and lastdevicestr
         try:
@@ -195,11 +199,13 @@ def lastinsert2():
                     i['lastsd'] = "NA"
                     i['sdhours'] = "NA"
                 break
+            time.sleep(0.1)
         for k in trips:
             if i['_id'] == k['_id']:
                 i['lasttrip'] = k['lasttrip']
                 i['tdhours'] = int((nowtime - int(k['lasttrip']))/3600)
                 break
+            time.sleep(0.1)
     return json.dumps(devices)
 
 # Show all surveys (?)
@@ -255,23 +261,23 @@ def useridcheck():
             return json.dumps({'userid':userid, 'email':email})
     return json.dumps({'userid':'no userid provided','email':'NA'})
 
-@app.route('surveycheck', methods=['GET','POST'])
+@app.route('/surveycheck', methods=['GET','POST'])
 def surveycheck():
     if 'userid' in request.args:
-        userid = request.args.get('userid')
-        outlist = mongo.db.surveydump.find({"userid":userid},{"_id": False})
+        outlist = mongo.db.surveydump.find({"userid":request.args.get('userid')},{"_id": False})
     else:
         outlist = mongo.db.surveydump.find({},{"_id": False})
-    return json.dumps(outlist)
+    time.sleep(0.1)
+    return json.dumps([doc for doc in outlist])
 
-@app.route('tripcheck', methods=['GET','POST'])
+@app.route('/tripcheck', methods=['GET','POST'])
 def tripcheck():
     if 'userid' in request.args:
-        userid = request.args.get('userid')
-        outlist = mongo.db.tripdump.find({"userid":userid},{"_id": False})
+        outlist = mongo.db.tripdump.find({"userid":request.args.get('userid')},{"_id": False})
     else:
         outlist = mongo.db.triopdump.find({},{"_id": False})
-    return json.dumps(outlist)
+    time.sleep(0.1)
+    return json.dumps([doc for doc in outlist])
 
 
 if __name__ == "__main__":
