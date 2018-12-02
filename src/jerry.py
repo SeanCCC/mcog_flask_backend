@@ -29,7 +29,6 @@ def devicedump():
 @app.route('/tripdump/', methods=['POST'])
 def tripdump():
     dumpdata = request.get_json(force=True, silent=True)
-    print('Access /tripdump:', dumpdata)
     try:
         dumpdata['servertime'] = int(time.time())
         mongo.db.tripdump.insert(dumpdata)
@@ -108,14 +107,14 @@ def servicecheck():
     hours2query = mongo.db.servicecheck.find({"ts": {"$gte": hours2ts}}, {'_id': False})
     templist = list()
     for i in hours1query:
-	if i not in hours2query:
+        if i not in hours2query:
             templist.append({'userid':i})
         time.sleep(0.1)
     notcheckedin = { 'last_'+str(int(hours2/3600))+"_hours": templist if templist else "All Checked In" }
     
     # Get checkedinlist
     if 'deviceid' in request.args:
-        checkedinlist = servicecheck.aggregate([ 
+        checkedinlist = mongo.db.servicecheck.aggregate([ 
             { '$match': {'$and': [{'userid':int(request.args.get('deviceid'))}, {'ts': {'$gte': hours1ts  }}]}},  
             {"$group": { 
                 "_id": '$deviceid', 
@@ -125,7 +124,7 @@ def servicecheck():
             }}
         ])
     else: 
-        checkedinlist = servicecheck.aggregate([ 
+        checkedinlist = mongo.db.servicecheck.aggregate([ 
             { '$match': {'ts': {'$gte': hours1ts  }}},  
             {"$group": { 
                 "_id": '$userid', 
@@ -134,6 +133,7 @@ def servicecheck():
                 'count': { "$sum": 1}
             }}
         ])
+    checkedinlist = [doc for doc in checkedinlist]
     for i in checkedinlist:
         i['datetimes'] = [ str(datetime.datetime.fromtimestamp(j)) for j in i['timestamps'] ]
         time.sleep(0.1)
@@ -163,11 +163,12 @@ def gettripdevice():
 
 # Show all of the last insert "survey" and "trip" from each devices.
 @app.route('/lastinsert', methods=['GET'])
-def lastinsert2():
+def lastinsert():
     devices = mongo.db.devicedump.aggregate([ 
         {"$sort":  {"EndTime":1}} , 
         {"$group": { "_id": "$userid","email":{"$last": "$email"},"ddcount": {"$sum":1}, "lastdevice": {"$last": "$EndTime"}}}
     ])
+    devices = [doc for doc in devices]
     surveys = mongo.db.surveydump.aggregate([ 
         {"$sort":  {"clickedtime":1}} , 
         {"$group": { "_id": "$userid", "lastsurvey": {"$last": "$clickedtime"}}}
@@ -181,24 +182,22 @@ def lastinsert2():
     for i in devices:
         # Set ddcount and lastdevicestr
         try:
-            i['ddhours'] = int((nowtime-i['lastdevice'])/3600)
+            i['ddhours'] = int((nowtime-i['lastdevice'])/3600) if i['lastdevice'] is not 'NA' else 'NA'
             i['ddpercent'] = float("{:.2f}".format((i["ddcount"]/336)))
             i['lastdevicestr'] = str(datetime.datetime.fromtimestamp(i['lastdevice']))
         except Exception as e:
-            print('/lastinsert', e, i)
             i['ddpercent'] = "NA"
         # Update with surveys
         for j in surveys:
             if i['_id'] == j['_id']:
                 try:
-                    lastsurvey = int(j['lastsurvey'])  
+                    lastsurvey = int(j['lastsurvey'])
                     i['lastsd'] = int(lastsurvey/1000)
-                    i['sdhours'] = int(int(nowtime-(lastsurvey/1000))/3600)
+                    i['sdhours'] = int(nowtime-(lastsurvey/1000)/3600)
+                    break
                 except Exception as e:
-                    print('/lastinsert', e, i)
                     i['lastsd'] = "NA"
                     i['sdhours'] = "NA"
-                break
             time.sleep(0.1)
         for k in trips:
             if i['_id'] == k['_id']:
@@ -221,6 +220,7 @@ def surveycompletion():
         }}, 
         { "$sort": {"_id":1} }
     ])
+    surveys = [doc for doc in surveys]
     for i in surveys:
         try:
             i['completeper'] = float("{:.2f}".format((i['clicked']/i['ct'])*100)) 
@@ -241,13 +241,14 @@ def tripcompletion():
         }},
         {"$sort": {"_id":1}}
     ])
+    trips = [doc for doc in trips]
     for i in trips:
         try:
             i['completeper'] = float("{:.2f}".format((i['clicked']/i['ct'])*100)) 
         except Exception as e:
             print('/lastinsert', e, i)
             i['completeper'] = "NA"
-    return json.dumps(trips)
+    return json.dumps()
 
 # Show the last login "email" for the requested "userid"
 @app.route('/useridcheck', methods=['POST'])
