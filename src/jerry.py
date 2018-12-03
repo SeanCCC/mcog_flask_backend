@@ -168,7 +168,6 @@ def lastinsert():
         {"$sort":  {"EndTime":1}} , 
         {"$group": { "_id": "$userid","email":{"$last": "$email"},"ddcount": {"$sum":1}, "lastdevice": {"$last": "$EndTime"}}}
     ])
-    devices = [doc for doc in devices]
     surveys = mongo.db.surveydump.aggregate([ 
         {"$sort":  {"clickedtime":1}} , 
         {"$group": { "_id": "$userid", "lastsurvey": {"$last": "$clickedtime"}}}
@@ -178,7 +177,8 @@ def lastinsert():
         {"$group": { "_id": "$userid", "lasttrip": {"$last": "$EndTime"}}}
     ])
     nowtime = int(time.time())
-    time.sleep(0.1)
+    outlist = list()
+    
     for i in devices:
         # Set ddcount and lastdevicestr
         try:
@@ -198,14 +198,13 @@ def lastinsert():
                 except Exception as e:
                     i['lastsd'] = "NA"
                     i['sdhours'] = "NA"
-            time.sleep(0.1)
         for k in trips:
             if i['_id'] == k['_id']:
                 i['lasttrip'] = k['lasttrip']
                 i['tdhours'] = int((nowtime - int(k['lasttrip']))/3600)
                 break
-            time.sleep(0.1)
-    return json.dumps(devices)
+        outlist.append(i)
+    return json.dumps(outlist)
 
 # Show all surveys (?)
 @app.route('/surveycompletion', methods=['GET'])
@@ -220,14 +219,15 @@ def surveycompletion():
         }}, 
         { "$sort": {"_id":1} }
     ])
-    surveys = [doc for doc in surveys]
+    outlist = list()
     for i in surveys:
         try:
             i['completeper'] = float("{:.2f}".format((i['clicked']/i['ct'])*100)) 
         except Exception as e:
             print('/lastinsert', e, i)
             i['completeper'] = "NA"
-    return json.dumps(surveys)
+        outlist.append(i)
+    return json.dumps(outlist)
 
 # Show all trips (?)
 @app.route('/tripcompletion', methods=['GET'])
@@ -241,14 +241,15 @@ def tripcompletion():
         }},
         {"$sort": {"_id":1}}
     ])
-    trips = [doc for doc in trips]
+    outlist = list()
     for i in trips:
         try:
             i['completeper'] = float("{:.2f}".format((i['clicked']/i['ct'])*100)) 
         except Exception as e:
             print('/lastinsert', e, i)
             i['completeper'] = "NA"
-    return json.dumps()
+        outlist.append(i)
+    return json.dumps(outlist)
 
 # Show the last login "email" for the requested "userid"
 @app.route('/useridcheck', methods=['POST'])
@@ -268,7 +269,6 @@ def surveycheck():
         outlist = mongo.db.surveydump.find({"userid":request.args.get('userid')},{"_id": False})
     else:
         outlist = mongo.db.surveydump.find({},{"_id": False})
-    time.sleep(0.1)
     return json.dumps([doc for doc in outlist])
 
 @app.route('/tripcheck', methods=['GET','POST'])
@@ -277,7 +277,6 @@ def tripcheck():
         outlist = mongo.db.tripdump.find({"userid":request.args.get('userid')},{"_id": False})
     else:
         outlist = mongo.db.triopdump.find({},{"_id": False})
-    time.sleep(0.1)
     return json.dumps([doc for doc in outlist])
 
 
