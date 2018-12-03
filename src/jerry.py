@@ -11,9 +11,10 @@ app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb://localhost:27017/mcog"
 mongo = PyMongo(app)
 
+app.url_map.strict_slashes = False
+
 # APP dump new device information
 @app.route('/devicedump', methods=['POST'])
-@app.route('/devicedump/', methods=['POST'])
 def devicedump():
     dumpdata = request.get_json(force=True, silent=True)
     try:
@@ -26,7 +27,6 @@ def devicedump():
 
 # APP dump new trip record
 @app.route('/tripdump', methods=['POST'])
-@app.route('/tripdump/', methods=['POST'])
 def tripdump():
     dumpdata = request.get_json(force=True, silent=True)
     try:
@@ -39,7 +39,6 @@ def tripdump():
 
 # APP dump new survey status
 @app.route('/surveydump', methods=['POST'])
-@app.route('/surveydump/', methods=['POST'])
 def surveydump():
     dumpdata = request.get_json(force=True, silent=True)
     try:
